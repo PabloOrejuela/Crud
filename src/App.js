@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+//importo REACT y los hooks de estado
+import React, { useState, useEffect } from "react";
 import { isEmpty, size } from "lodash";
-import { nanoid } from "nanoid";
+import { addDocument, deleteDocument, getCollection, updateDocument } from "./backend";
 
 function App() {
   //Estados
@@ -10,6 +11,19 @@ function App() {
   const [id, setId] = useState("");
   const [error, setError] = useState(null);
 
+  //hook
+  useEffect(() => {
+    (async () => {
+      const result = await getCollection("tasks");
+      if (result.statusResponse) {
+        setTasks(result.data);
+      } 
+    })()
+  },[]);
+
+  /* 
+    Valida formulario
+  */
   const validForm = () => {
     let isValid = true;
     setError(null);
@@ -20,25 +34,39 @@ function App() {
     return isValid;
   };
 
-  const addTask = (e) => {
+  /* 
+    Añade una tarea
+  */
+  const addTask = async(e) => {
     e.preventDefault();
 
     if (!validForm()) {
       return;
     }
-    const newTask = {
-      id: nanoid(),
-      //task: task
-      name: task,
-    };
 
-    setTasks([...tasks, newTask]);
+    const result = await addDocument("tasks", {name: task});
+
+    if (!result.statusResponse) {
+      setError(result.error);
+      return
+    } 
+
+    setTasks([...tasks, {id: result.data.id, name: task}]);
     setTask("");
   };
 
-  const saveTask = (e) => {
+  /* 
+    graba una tarea nueva
+  */
+  const saveTask = async(e) => {
     e.preventDefault();
     if (!validForm()) {
+      return;
+    }
+
+    const result = await updateDocument("tasks", id, {name: task});
+    if (!result.statusResponse) {
+      setError(result.error);
       return;
     }
 
@@ -51,11 +79,23 @@ function App() {
     setId("");
   };
 
-  const deleteTask = (id) => {
+  /* 
+    Borra una tarea
+  */
+  const deleteTask = async(id) => {
+    //llamo al metodo del backend
+    const result = await deleteDocument("tasks", id);
+    if (!result.statusResponse) {
+      setError(result.error);
+      return;
+    }
     const filteredTasks = tasks.filter((task) => task.id !== id);
     setTasks(filteredTasks);
   };
 
+  /* 
+    Edita una tarea
+  */
   const editTask = (theTask) => {
     setTask(theTask.name);
     setEditMode(true);
@@ -76,7 +116,7 @@ function App() {
           ) : (
             <ul className="list-group">
               {tasks.map((task) => (
-                <li className="list-group-item" key={task.id}>
+                <li className="list-group-item fs-3" key={task.id}>
                   <span className="lead">{task.name}</span>
                   <button
                     className="btn btn-danger btn-sm float-right mx-2"
